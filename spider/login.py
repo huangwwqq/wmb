@@ -1,7 +1,7 @@
 """登录。POST /async/sign，账号密码明文表单，成功 state=0，cookie 在响应里。"""
 import sys
 sys.path.append('../')
-from curl_cffi import requests as creq
+import requests
 from common.requests_tool import hold_http, release_http
 from setting.setting import *
 
@@ -9,7 +9,7 @@ from setting.setting import *
 class LoginTool:
 
     def login(self, username: str, password: str):
-        session = creq.Session(impersonate='chrome131')
+        session = requests.Session()
         session.headers.update(HEADER)
         lock = hold_http()
         try:

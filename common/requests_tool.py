@@ -1,8 +1,7 @@
-import random
 import time
 
 import redis
-from curl_cffi import requests as creq
+import requests
 from setting.setting import *
 
 # 同一个账号同时打太多请求时，后面的翻页会回未登录的空对象 {}。所有请求串行。
@@ -40,18 +39,13 @@ def release_http(client):
         pass
 
 
-def random_impersonate() -> str:
-    """从 BrowserTypeLiteral 随机取 curl_cffi 浏览器指纹。"""
-    return random.choice(BrowserTypeLiteral)
-
-
 def request_get(url, headers=None, proxies=None, params=None, cookies=None, allow_redirects=True):
     reset = 3
     while reset:
         reset -= 1
         lock = hold_http()
         try:
-            response = creq.get(
+            response = requests.get(
                 url,
                 headers=headers,
                 params=params,
@@ -59,7 +53,6 @@ def request_get(url, headers=None, proxies=None, params=None, cookies=None, allo
                 cookies=cookies,
                 allow_redirects=allow_redirects,
                 timeout=45,
-                impersonate=random_impersonate(),
             )
         except Exception as e:
             logger.error(f'请求异常,异常为{e}')
@@ -77,14 +70,13 @@ def request_post(url, headers=None, data=None, proxies=None, cookies=None):
         reset -= 1
         lock = hold_http()
         try:
-            response = creq.post(
+            response = requests.post(
                 url,
                 headers=headers,
                 proxies=proxies,
                 data=data,
                 cookies=cookies,
                 timeout=45,
-                impersonate=random_impersonate(),
             )
         except Exception as e:
             logger.error(f'请求异常,异常为{e}')
