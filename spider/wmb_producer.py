@@ -76,16 +76,19 @@ class WmbProducer:
         if not country_en:
             logger.warning(f'{iso} 没有英文国名,跳过且不标记完成')
             return False
-        start = 0
-        trusted = 0
+        page = max(int(task.get('page') or 1), 1)
+        start = (page - 1) * SEARCH_PAGE_SIZE
+        if start >= SEARCH_MAX:
+            return True
+        trusted = int(task.get('number') or 0)
         while start < SEARCH_MAX:
             hits, rows = self._call(lambda s=start, st=site_type, name=country_en: self.api.search_companies(
                 company_type=st,
                 country=name,
                 start=s,
             ))
-            # 翻页被限流时接口会回 total=0 的空页，不能拿这个 0 覆盖上一页的总量
-            if int(hits or 0) > 0:
+            # 被限流时接口会回一个很小的 total。只允许总量变大，不能用残页把目标改小。
+            if int(hits or 0) > trusted:
                 trusted = int(hits)
             company_rows = []
             for item in rows:
@@ -99,20 +102,20 @@ class WmbProducer:
                 })
             self.company_db.save_ignore(company_rows)
             got = len(company_rows)
-            logger.info(f'{iso} type={db_type} start={start} 本页{got} hits={hits} trusted={trusted}')
             target = min(trusted, SEARCH_MAX) if trusted else 0
-            reached = target and start + got >= target
-            # 首页是空的，但任务表里这个国家有数量：这是失败页，不是“没有数据”。
-            if got == 0 and start == 0 and not trusted:
-                if int(task.get('number') or 0) > 0:
-                    raise WmbBlocked(f'首页为空 {iso} 任务数量{task.get("number")}')
+            logger.info(f'{iso} type={db_type} page={page} start={start} 本页{got} hits={hits} 总量{target}')
+            # 第一页就是空的，并且国家数量也是 0，才算没有数据。
+            if got == 0 and page == 1 and target <= 0:
                 return True
-            # 满页还没到总量，继续翻。到了总量，或者最后一页不足一页，才算完成。
-            if reached and (got < SEARCH_PAGE_SIZE or start + SEARCH_PAGE_SIZE >= target):
+            # 本页没满，但还没到总量：空页或残页，不算完成，页码也不往前走。
+            if target <= 0 or got == 0 or (got < SEARCH_PAGE_SIZE and start + got < target):
+                raise WmbBlocked(f'还没到最后一页 {iso} page={page} 本页{got} hits={hits} 总量{target}')
+            # 本页已经盖住总量，或到了站点 10000 条上限，才标完成。
+            if start + got >= target or start + SEARCH_PAGE_SIZE >= SEARCH_MAX:
                 return True
-            if got < SEARCH_PAGE_SIZE or not trusted:
-                raise WmbBlocked(f'还没到最后一页 {iso} start={start} 本页{got} hits={hits} 总量{target}')
-            start += SEARCH_PAGE_SIZE
+            page += 1
+            self.task_db.save_page(iso, db_type, page)
+            start = (page - 1) * SEARCH_PAGE_SIZE
         return True
 
     def fill_companies(self):

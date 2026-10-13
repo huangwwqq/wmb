@@ -24,12 +24,20 @@ class TBWmbTask:
             'type': int(db_type),
             'number': int(number),
             'flag': 0,
+            'page': 1,
         })
 
     def mark_unfinished(self, country: str, db_type: int, number: int):
         return self.db.update(
             table=self.table_name,
-            data={'number': int(number), 'flag': 0},
+            data={'number': int(number), 'flag': 0, 'page': 1},
+            eq={'country': country, 'type': int(db_type)},
+        )
+
+    def save_page(self, country: str, db_type: int, page: int):
+        return self.db.update(
+            table=self.table_name,
+            data={'page': int(page)},
             eq={'country': country, 'type': int(db_type)},
         )
 

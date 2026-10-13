@@ -17,12 +17,16 @@ CREATE TABLE IF NOT EXISTS public.wmb_task (
     type integer NOT NULL,
     number integer NOT NULL DEFAULT 0,
     flag integer NOT NULL DEFAULT 0,
+    page integer NOT NULL DEFAULT 1,
     update_time timestamp without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 COMMENT ON TABLE public.wmb_task IS '外贸邦国家任务。type 1采购商 2供应商；flag 0未完成 1已完成';
 COMMENT ON COLUMN public.wmb_task.country IS '国家二字码';
 COMMENT ON COLUMN public.wmb_task.number IS '该国家该类型公司数量（含邮箱）';
+COMMENT ON COLUMN public.wmb_task.page IS '当前要抓的页，从 1 开始';
+
+ALTER TABLE public.wmb_task ADD COLUMN IF NOT EXISTS page integer NOT NULL DEFAULT 1;
 
 CREATE UNIQUE INDEX IF NOT EXISTS ux_wmb_task_country_type ON public.wmb_task (country, type);
 CREATE INDEX IF NOT EXISTS ix_wmb_task_country ON public.wmb_task (country);
