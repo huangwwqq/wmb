@@ -1,4 +1,5 @@
 import random
+import time
 
 from curl_cffi import requests as creq
 from setting.setting import *
@@ -26,6 +27,7 @@ def request_get(url, headers=None, proxies=None, params=None, cookies=None, allo
             )
         except Exception as e:
             logger.error(f'请求异常,异常为{e}')
+            time.sleep(2)
         else:
             return response
     return
@@ -47,6 +49,7 @@ def request_post(url, headers=None, data=None, proxies=None, cookies=None):
             )
         except Exception as e:
             logger.error(f'请求异常,异常为{e}')
+            time.sleep(2)
         else:
             return response
     return

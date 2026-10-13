@@ -95,6 +95,9 @@ class WmbProducer:
                 })
             self.company_db.save_ignore(company_rows)
             logger.info(f'{iso} type={db_type} start={start} 本页{len(rows)} hits={hits}')
+            # 条数明显少于总量时，不能当成最后一页。旧列表接口每次只回 1 条，会把国家误标完成。
+            if hits and start + len(rows) < min(int(hits), SEARCH_MAX) and len(rows) < SEARCH_PAGE_SIZE:
+                raise WmbBlocked(f'本页条数不足 {iso} hits={hits} got={len(rows)}')
             if not rows or len(rows) < SEARCH_PAGE_SIZE:
                 return True
             start += SEARCH_PAGE_SIZE
@@ -135,4 +138,10 @@ class WmbProducer:
 
 
 if __name__ == '__main__':
-    WmbProducer().run()
+    while True:
+        try:
+            WmbProducer().run()
+            break
+        except Exception as exc:
+            logger.warning(f'生产者异常,稍后重跑: {exc}')
+            time.sleep(BLOCK_SLEEP)

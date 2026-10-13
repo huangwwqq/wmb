@@ -1,4 +1,4 @@
-"""外贸邦接口。国家数量走 /async/common/country/stats，公司列表走 /async/company/search/list。"""
+"""外贸邦接口。国家数量走 /async/common/country/stats，公司列表走 /async/company/search。"""
 import json
 import re
 import sys
