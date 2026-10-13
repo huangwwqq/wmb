@@ -64,7 +64,7 @@ REDISSERVERNAME = 'wmb_user_data'
 REDISUSERQUEUE = 'wmb_username_queue'
 REDISUSERWAITQUEUE = 'wmb_username_wait_queue'
 WAITTIME = 1
-LOGINITERVAL = int(60 * 60 * 1.5)
+LOGINITERVAL = 60 * 60
 MAXCHECKUSERDATANUMBER = 30
 
 # PostgreSQL：自建 Supabase 本机 5433，库 postgres

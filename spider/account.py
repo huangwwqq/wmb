@@ -28,7 +28,8 @@ class Account:
             username = item['username']
             for _ in range(3):
                 code, cookies = self.login_tool.login(username=username, password=item['password'])
-                if code != 1 or not cookies:
+                if code != 1 or not cookies or not cookies.get('access_token'):
+                    logger.warning(f'{username} 登录没有拿到 cookie,跳过,等下一次')
                     time.sleep(3)
                     continue
                 redis_save_key = f'{REDISSERVERNAME}_{username}'

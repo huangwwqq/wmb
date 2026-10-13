@@ -26,7 +26,18 @@ class AccountQueue:
         self.redis_obj.zadd(key_name=REDISUSERWAITQUEUE, data={user_data_key: int(time.time())})
         if isinstance(account_data, bytes):
             account_data = account_data.decode()
-        return user_data_key, json.loads(account_data)
+        data = json.loads(account_data)
+        cookie = data.get('cookie')
+        if isinstance(cookie, str):
+            try:
+                cookie = json.loads(cookie)
+            except Exception:
+                cookie = None
+        if not cookie or not cookie.get('access_token'):
+            logger.warning('cookie 为空,跳过,等下一次登录')
+            return '', {}
+        data['cookie'] = cookie
+        return user_data_key, data
 
     def check_user_data(self):
         while True:
