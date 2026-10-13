@@ -1,5 +1,6 @@
 """外贸邦接口。国家数量走 /async/common/country/stats，公司列表走 /async/company/search/list。"""
 import json
+import re
 import sys
 import time
 from datetime import datetime, timedelta
@@ -108,6 +109,8 @@ class WmbApi:
             cookies=self._cookie(),
         )
         status, text, _ = self._read(response)
+        if status == 404:
+            return ''
         if status >= 400:
             raise WmbBlocked(f'页面状态 {status}')
         return text
@@ -179,11 +182,15 @@ class WmbApi:
             size=size,
             filter_weight=filter_weight,
         )
-        payload = self.get('/async/company/search/list', params)
-        if payload.get('state') not in (0, '0', None):
-            raise WmbBlocked(f'公司搜索 state={payload.get("state")} {payload.get("message")}')
-        data = payload.get('data') or {}
-        return int(data.get('hits') or 0), data.get('list') or []
+        # /async/company/search/list 每次只回 1 条。页面实际翻页走 /async/company/search，一页 30 个公司。
+        payload = self.get('/async/company/search', params)
+        content = payload.get('content') or ''
+        seen = []
+        for company_id in re.findall(r'/(?:buyer|supplier)/(\d+)', content):
+            if company_id not in seen:
+                seen.append(company_id)
+        rows = [{'id': company_id} for company_id in seen]
+        return int(payload.get('total') or 0), rows
 
     def _node_list(self, payload: dict, key: str):
         node = payload.get(key) or {}

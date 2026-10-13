@@ -28,17 +28,9 @@ if not logger.handlers:
     console.setLevel(logging.INFO)
     logger.addHandler(console)
 
+# 只留实测能稳定返回的指纹。随机到旧指纹时，公司页会一直挂住。
 BrowserTypeLiteral = [
-    "chrome120",
-    "chrome123",
-    "chrome124",
     "chrome131",
-    "chrome133a",
-    "chrome136",
-    "chrome142",
-    "chrome145",
-    "chrome146",
-    "chrome150",
 ]
 
 HEADER = {

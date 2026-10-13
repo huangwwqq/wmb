@@ -21,7 +21,7 @@ def request_get(url, headers=None, proxies=None, params=None, cookies=None, allo
                 proxies=proxies,
                 cookies=cookies,
                 allow_redirects=allow_redirects,
-                timeout=300,
+                timeout=45,
                 impersonate=random_impersonate(),
             )
         except Exception as e:
@@ -42,7 +42,7 @@ def request_post(url, headers=None, data=None, proxies=None, cookies=None):
                 proxies=proxies,
                 data=data,
                 cookies=cookies,
-                timeout=300,
+                timeout=45,
                 impersonate=random_impersonate(),
             )
         except Exception as e:
