@@ -4,6 +4,7 @@ import threading
 import time
 sys.path.append('../')
 sys.path = list(set(sys.path))
+from account import Account
 from account_queue import AccountQueue
 from curd.tb_company_info import TBCompanyInfo
 from curd.tb_trade_info import TBTradeInfo
@@ -53,7 +54,9 @@ class WmbConsumer:
         except WmbLogin:
             logger.warning(f'登录失效,公司放回 {company_id}')
             self._release(company_id)
-            time.sleep(PRODUCERSLEEPTIME)
+            if not Account().save_login_data():
+                logger.warning('登录没有拿到 cookie,跳过,等下一次')
+                time.sleep(BLOCK_SLEEP)
             return
         except WmbBlocked as exc:
             logger.warning(f'反爬,公司不标记完成 {company_id}: {exc}')

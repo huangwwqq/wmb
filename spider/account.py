@@ -23,9 +23,11 @@ class Account:
         self.login_tool = LoginTool()
 
     def save_login_data(self):
+        saved = False
         accounts = [a for a in self.account_list if a and a.get('username') and a.get('password')]
         for item in accounts:
             username = item['username']
+            got = False
             for _ in range(3):
                 code, cookies = self.login_tool.login(username=username, password=item['password'])
                 if code != 1 or not cookies or not cookies.get('access_token'):
@@ -40,7 +42,12 @@ class Account:
                 }
                 self.redis_obj.redis_set_data(key_name=redis_save_key, data=json.dumps(account_data))
                 self.redis_obj.zadd(key_name=REDISUSERQUEUE, data={redis_save_key: int(time.time())})
+                got = True
+                saved = True
                 break
+            if not got:
+                continue
+        return saved
 
 
 if __name__ == '__main__':

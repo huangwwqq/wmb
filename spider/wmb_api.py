@@ -152,7 +152,9 @@ class WmbApi:
             'is_logistics': 0,
             'filter_date_start': '*',
             'filter_date_end': '*',
+            'is_add_log': 'false',
             'only_phrase': 0,
+            'collect_code': '',
             'size': size,
         }
 
@@ -184,6 +186,9 @@ class WmbApi:
         )
         # /async/company/search/list 每次只回 1 条。页面实际翻页走 /async/company/search，一页 30 个公司。
         payload = self.get('/async/company/search', params)
+        # 未登录或登录态失效时接口回 {}，不是“这一页没有公司”。
+        if 'content' not in payload and 'total' not in payload:
+            raise WmbLogin(f'搜索没有登录态 start={params.get("start")}')
         content = payload.get('content') or ''
         seen = []
         for company_id in re.findall(r'/(?:buyer|supplier)/(\d+)', content):

@@ -2,6 +2,7 @@
 import sys
 sys.path.append('../')
 from curl_cffi import requests as creq
+from common.requests_tool import hold_http, release_http
 from setting.setting import *
 
 
@@ -10,6 +11,7 @@ class LoginTool:
     def login(self, username: str, password: str):
         session = creq.Session(impersonate='chrome131')
         session.headers.update(HEADER)
+        lock = hold_http()
         try:
             session.get(BASE_URL + '/', timeout=60)
             response = session.post(
@@ -20,6 +22,8 @@ class LoginTool:
         except Exception as exc:
             logger.warning(f'登录请求失败: {exc}')
             return 0, {}
+        finally:
+            release_http(lock)
         try:
             payload = response.json()
         except Exception:

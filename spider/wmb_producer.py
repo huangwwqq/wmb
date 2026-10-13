@@ -3,6 +3,7 @@ import sys
 import time
 sys.path.append('../')
 sys.path = list(set(sys.path))
+from account import Account
 from account_queue import AccountQueue
 from curd.tb_wmb_company_task import TBWmbCompanyTask
 from curd.tb_wmb_task import TBWmbTask
@@ -34,8 +35,12 @@ class WmbProducer:
             try:
                 return fn()
             except WmbLogin:
-                logger.warning('登录失效,等待重新登录')
-                time.sleep(PRODUCERSLEEPTIME)
+                logger.warning('登录失效,重新登录,仍停在当前页')
+                if not Account().save_login_data():
+                    logger.warning('登录没有拿到 cookie,跳过,等下一次')
+                    time.sleep(BLOCK_SLEEP)
+                else:
+                    time.sleep(1)
             except WmbBlocked as exc:
                 logger.warning(f'反爬,不标记完成,稍后重试: {exc}')
                 time.sleep(BLOCK_SLEEP)
