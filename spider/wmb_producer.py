@@ -107,10 +107,12 @@ class WmbProducer:
             # 第一页就是空的，并且国家数量也是 0，才算没有数据。
             if got == 0 and page == 1 and target <= 0:
                 return True
-            # 本页没满，但还没到总量：空页或残页，不算完成，页码也不往前走。
+            # 空页、残页：还是这个国家、还是这一页，睡一会再抓。不换国家。
             if target <= 0 or got == 0 or (got < SEARCH_PAGE_SIZE and start + got < target):
-                raise WmbBlocked(f'还没到最后一页 {iso} page={page} 本页{got} hits={hits} 总量{target}')
-            # 本页已经盖住总量，或到了站点 10000 条上限，才标完成。
+                logger.warning(f'{iso} 第{page}页不完整,继续这一页 本页{got} hits={hits} 总量{target}')
+                time.sleep(BLOCK_SLEEP)
+                continue
+            # 本页已经盖住总量，或到了站点 10000 条上限，这个国家才算完成。
             if start + got >= target or start + SEARCH_PAGE_SIZE >= SEARCH_MAX:
                 return True
             page += 1
@@ -119,34 +121,19 @@ class WmbProducer:
         return True
 
     def fill_companies(self):
-        seen = set()
         while True:
-            tasks = self.task_db.unfinished(limit=20)
-            task = None
-            for item in tasks:
-                key = (item.get('country'), item.get('type'))
-                if key not in seen:
-                    task = item
-                    break
-            if not task:
-                if seen:
-                    logger.info('本轮有国家被限流,稍后重试')
-                    seen.clear()
-                    time.sleep(BLOCK_SLEEP)
-                    continue
+            tasks = self.task_db.unfinished(limit=1)
+            if not tasks:
                 logger.info('未完成的国家任务已扫完')
                 return
-            key = (task.get('country'), int(task.get('type')))
-            try:
-                done = self._fill_one(task)
-            except WmbBlocked:
-                seen.add(key)
+            task = tasks[0]
+            done = self._fill_one(task)
+            if not done:
+                logger.warning(f'{task.get("country")} 还不能翻页,仍停在这个国家')
+                time.sleep(BLOCK_SLEEP)
                 continue
-            if done:
-                self.task_db.mark_done(task['country'], int(task['type']))
-                logger.info(f'国家任务完成 {task["country"]} type={task["type"]}')
-            else:
-                seen.add(key)
+            self.task_db.mark_done(task['country'], int(task['type']))
+            logger.info(f'国家任务完成 {task["country"]} type={task["type"]}')
 
     def run(self):
         logger.info('生产者开始')
