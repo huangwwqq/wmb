@@ -77,12 +77,16 @@ class WmbProducer:
             logger.warning(f'{iso} 没有英文国名,跳过且不标记完成')
             return False
         start = 0
+        trusted = 0
         while start < SEARCH_MAX:
             hits, rows = self._call(lambda s=start, st=site_type, name=country_en: self.api.search_companies(
                 company_type=st,
                 country=name,
                 start=s,
             ))
+            # 翻页被限流时接口会回 total=0 的空页，不能拿这个 0 覆盖上一页的总量
+            if int(hits or 0) > 0:
+                trusted = int(hits)
             company_rows = []
             for item in rows:
                 company_id = item.get('id')
@@ -94,15 +98,21 @@ class WmbProducer:
                     'flag': 0,
                 })
             self.company_db.save_ignore(company_rows)
-            logger.info(f'{iso} type={db_type} start={start} 本页{len(rows)} hits={hits}')
-            # 条数明显少于总量时，不能当成最后一页。旧列表接口每次只回 1 条，会把国家误标完成。
-            if hits and start + len(rows) < min(int(hits), SEARCH_MAX) and len(rows) < SEARCH_PAGE_SIZE:
-                raise WmbBlocked(f'本页条数不足 {iso} hits={hits} got={len(rows)}')
-            if not rows or len(rows) < SEARCH_PAGE_SIZE:
+            got = len(company_rows)
+            logger.info(f'{iso} type={db_type} start={start} 本页{got} hits={hits} trusted={trusted}')
+            target = min(trusted, SEARCH_MAX) if trusted else 0
+            reached = target and start + got >= target
+            # 首页是空的，但任务表里这个国家有数量：这是失败页，不是“没有数据”。
+            if got == 0 and start == 0 and not trusted:
+                if int(task.get('number') or 0) > 0:
+                    raise WmbBlocked(f'首页为空 {iso} 任务数量{task.get("number")}')
                 return True
+            # 满页还没到总量，继续翻。到了总量，或者最后一页不足一页，才算完成。
+            if reached and (got < SEARCH_PAGE_SIZE or start + SEARCH_PAGE_SIZE >= target):
+                return True
+            if got < SEARCH_PAGE_SIZE or not trusted:
+                raise WmbBlocked(f'还没到最后一页 {iso} start={start} 本页{got} hits={hits} 总量{target}')
             start += SEARCH_PAGE_SIZE
-            if start >= SEARCH_MAX or (hits and start >= min(hits, SEARCH_MAX)):
-                return True
         return True
 
     def fill_companies(self):
@@ -116,6 +126,11 @@ class WmbProducer:
                     task = item
                     break
             if not task:
+                if seen:
+                    logger.info('本轮有国家被限流,稍后重试')
+                    seen.clear()
+                    time.sleep(BLOCK_SLEEP)
+                    continue
                 logger.info('未完成的国家任务已扫完')
                 return
             key = (task.get('country'), int(task.get('type')))
